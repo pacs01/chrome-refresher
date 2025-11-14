@@ -1,0 +1,30 @@
+---
+- name: Run chrome reload script on selected hosts
+  hosts: chrome_workers
+  become: true
+  become_user: worker
+
+  # requires target_ms_post var defined in hosts.ini
+  vars:
+    rdp_user: worker
+    launcher_script_src: "launch_2by2.sh"
+    target_url: "https://currentmillis.com/"
+    target_date: "2025-11-17 20:00:00.000 CET"
+    target_ms_pre: "600000,15000"
+    screen_resolution: "2560x1440"
+
+  tasks:
+    - name: Run the launcher script
+      shell: >
+        /home/{{ rdp_user }}/{{ launcher_script_src }}
+        '{{ target_url }}'
+        '{{ target_date }}'
+        '{{ target_ms_pre }}'
+        '{{ target_ms_post }}'
+        '{{ screen_resolution }}'
+      args:
+        chdir: /home/{{ rdp_user }}
+      environment:
+        DISPLAY: "{{ ansible_env.DISPLAY | default(':10.0') }}" # required for chrome to not run headless
+      become: yes
+      become_user: "{{ rdp_user }}"

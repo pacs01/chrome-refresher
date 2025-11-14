@@ -1,0 +1,142 @@
+---
+- name: Prepare Ubuntu VM for XFCE + xRDP + Chrome reload scripts
+  hosts: chrome_workers
+  become: true
+
+  vars_files:
+    - secrets.yml
+
+  vars:
+    rdp_user: worker
+    websocat_version: "v1.14.0"
+    scripts_source_dir: "./"
+    ticket_script_src: "chrome_reload_at_ms.sh"
+    launcher_script_src: "launch_2by2.sh"
+
+  tasks:
+    - name: Update system
+      apt:
+        update_cache: yes
+        upgrade: dist
+        cache_valid_time: 3600
+
+    - name: Install desktop environment, RDP, firewall, browser and tools
+      apt:
+        name:
+          - xfce4
+          - xfce4-goodies
+          - xorg
+          - dbus-x11
+          - x11-xserver-utils
+          - xrdp
+          - ufw
+          - firefox
+          - jq
+          - chrony
+        state: present
+
+    - name: Enable and start xrdp
+      service:
+        name: xrdp
+        state: started
+        enabled: yes
+
+    - name: Enable and start xrdp-sesman
+      service:
+        name: xrdp-sesman
+        state: started
+        enabled: yes
+
+    - name: Allow SSH in ufw
+      ufw:
+        rule: allow
+        port: "22"
+        proto: tcp
+
+    - name: Allow RDP in ufw
+      ufw:
+        rule: allow
+        port: "3389"
+        proto: tcp
+
+    - name: Enable ufw (if not already)
+      ufw:
+        state: enabled
+        policy: allow
+
+    - name: Ensure non-root RDP user exists
+      user:
+        name: "{{ rdp_user }}"
+        password: "{{ rdp_user_password | password_hash('sha512') }}" # RDP requires a password
+        groups: sudo
+        create_home: yes
+        shell: /bin/bash
+        update_password: on_create
+
+    - name: Configure XFCE session for RDP user
+      copy:
+        dest: "/home/{{ rdp_user }}/.xsession"
+        content: "xfce4-session\n"
+        owner: "{{ rdp_user }}"
+        group: "{{ rdp_user }}"
+        mode: "0644"
+
+    # Google Chrome install
+
+    - name: Download Google Chrome .deb
+      get_url:
+        url: https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+        dest: /tmp/google-chrome-stable_current_amd64.deb
+        mode: "0644"
+
+    - name: Install Google Chrome from .deb
+      apt:
+        deb: /tmp/google-chrome-stable_current_amd64.deb
+
+    # websocat
+
+    - name: Download websocat static binary
+      get_url:
+        url: "https://github.com/vi/websocat/releases/download/{{ websocat_version }}/websocat.x86_64-unknown-linux-musl"
+        dest: /usr/local/bin/websocat
+        mode: "0755"
+
+    # chrony time sync
+
+    - name: Ensure chrony service is running
+      service:
+        name: chrony
+        state: started
+        enabled: yes
+
+    - name: Force time sync with chrony (makestep)
+      command: chronyc makestep
+      register: chronyc_result
+      failed_when: false
+      changed_when: "'Step' in chronyc_result.stdout or 'adjust' in chronyc_result.stdout"
+
+    # Deploy the reload script for the RDP user
+    - name: Copy chrome_reload_at_ms.sh to user home
+      copy:
+        src: "{{ scripts_source_dir }}{{ ticket_script_src }}"
+        dest: "/home/{{ rdp_user }}/{{ ticket_script_src }}"
+        owner: "{{ rdp_user }}"
+        group: "{{ rdp_user }}"
+        mode: "0755"
+
+    # Deploy the launcher script for the RDP user
+    - name: Copy launch_2by2.sh to user home
+      copy:
+        src: "{{ scripts_source_dir }}{{ launcher_script_src }}"
+        dest: "/home/{{ rdp_user }}/{{ launcher_script_src }}"
+        owner: "{{ rdp_user }}"
+        group: "{{ rdp_user }}"
+        mode: "0755"
+
+    # Reboot after all changes (xRDP/desktop/etc.)
+    - name: Reboot the machine
+      reboot:
+        msg: "Reboot after initial XFCE/xRDP/Chrome setup"
+        pre_reboot_delay: 0
+        reboot_timeout: 600
+      when: ansible_facts['virtualization_role'] is defined
