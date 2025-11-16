@@ -96,16 +96,21 @@ for _ in {1..30}; do
   sleep 0.2
 done
 
-# ---- get WebSocket URL (first tab only) ----
+# ---- get WebSocket URL (first page tab only) ----
+echo "[*] DevTools targets on port ${DEBUG_PORT}:"
+curl -s "http://127.0.0.1:${DEBUG_PORT}/json" | jq '.[] | {type, title, url, webSocketDebuggerUrl}'
+
 WS_URL=$(
-  curl -s "http://127.0.0.1:${DEBUG_PORT}/json" | jq -r '.[0].webSocketDebuggerUrl'
+  curl -s "http://127.0.0.1:${DEBUG_PORT}/json" \
+  | jq -r '.[] | select(.type == "page") | .webSocketDebuggerUrl' \
+  | head -n 1
 )
 
 if [ -z "${WS_URL}" ] || [ "${WS_URL}" = "null" ]; then
-  echo "[!] No WebSocket URL found on port ${DEBUG_PORT}"
+  echo "[!] No page WebSocket URL found on port ${DEBUG_PORT}"
   exit 1
 fi
-echo "[*] Using WebSocket: ${WS_URL}\n"
+echo "[*] Using WebSocket: ${WS_URL}"
 
 # ---- parse comma-separated timestamps into array ----
 IFS=',' read -r -a TARGET_MS_ARRAY <<< "${TARGET_MS_CSV}"

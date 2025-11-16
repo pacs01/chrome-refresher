@@ -11,7 +11,7 @@ refresh a target page at precisely scheduled times.
 
 ## Configuration
 
-Adjust the `execution.yml` Ansible playbook or write your own launcher instead of the 'launch_2by2.sh' script.
+Adjust the `execution.yml` Ansible playbook or write your own launcher instead of the `launch_2by2.sh` script.
 
 The main script with usage instructions is in `chrome_reload_at_ms.sh`.
 
