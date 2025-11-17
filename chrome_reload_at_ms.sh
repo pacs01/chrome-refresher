@@ -141,5 +141,5 @@ for TARGET_MS in "${TARGET_MS_ARRAY[@]}"; do
     | websocat -q "${WS_URL}"
 
   FIRED_MS=$(date +%s%3N)
-  echo "[*] Reload triggered at $(ms_to_cet "$FIRED_MS") (${FIRED_MS}) ms \n--> target was $(ms_to_cet "$TARGET_MS") (${TARGET_MS})  [${COUNT}/${TOTAL_RELOADS}]"
+  echo "[*] Reload triggered at $(ms_to_cet "$FIRED_MS") (${FIRED_MS}) ms --> target was $(ms_to_cet "$TARGET_MS") (${TARGET_MS})  [${COUNT}/${TOTAL_RELOADS}]"
 done
