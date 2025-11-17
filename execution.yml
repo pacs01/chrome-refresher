@@ -13,6 +13,7 @@
     target_ms_pre: "600000,15000"
     screen_resolution: "2560x1440"
 
+  # TODO: fix this workaround - in some cases, target_ms_post is passed as a Python/YAML list instead of a string!?
   tasks:
     - name: Run the launcher script
       shell: >
@@ -20,7 +21,7 @@
         '{{ target_url }}'
         '{{ target_date }}'
         '{{ target_ms_pre }}'
-        '{{ target_ms_post }}'
+        '{% if target_ms_post is string %}{{ target_ms_post }}{% else %}{{ target_ms_post | join(",") }}{% endif %}'  
         '{{ screen_resolution }}'
       args:
         chdir: /home/{{ rdp_user }}
